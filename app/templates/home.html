@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="jumbotron">
+    <h1 class="display-4">Welcome to Language Learning</h1>
+    <p class="lead">Explore our language learning platform and enhance your skills.</p>
+    <hr class="my-4">
+    <p>Get started by exploring our different language levels.</p>
+    <a class="btn btn-primary btn-lg" href="{{ url_for('pages.levels_page') }}" role="button">View Levels</a>
+</div>
+{% endblock %} 
