@@ -5,6 +5,7 @@ from app.routes.auth import auth_bp
 from app.routes.general import general_bp
 from app.routes.level import level_bp
 from app.routes.pages import pages_bp
+from app.routes.section import section_bp
 from flask_migrate import Migrate
 
 
@@ -19,10 +20,11 @@ def create_app(config_class=Config):
     mail.init_app(app)
 
     # Register blueprints
-    app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(general_bp)
     app.register_blueprint(level_bp, url_prefix='/api/levels')
     app.register_blueprint(pages_bp)
+    app.register_blueprint(section_bp, url_prefix='/api/sections')
 
     # Create database tables
     with app.app_context():

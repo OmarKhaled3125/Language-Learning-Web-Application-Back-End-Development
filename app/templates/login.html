@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Language Learning App{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h2 class="text-center mb-4">Login</h2>
+                    <form id="loginForm" onsubmit="handleLogin(event)">
+                        <div class="form-floating mb-3">
+                            <input type="email" class="form-control" id="email" name="email" placeholder="name@example.com" required>
+                            <label for="email">Email</label>
+                        </div>
+                        
+                        <div class="form-floating mb-3">
+                            <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+                            <label for="password">Password</label>
+                        </div>
+                        
+                        <div class="alert alert-danger d-none" id="loginError"></div>
+                        
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-sign-in-alt me-2"></i>Login
+                        </button>
+                        
+                        <div class="text-center mt-3">
+                            <a href="#" class="text-decoration-none" onclick="handleForgotPassword(event)">Forgot Password?</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function handleLogin(event) {
+    event.preventDefault();
+    
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const errorDiv = document.getElementById('loginError');
+    
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Store token and user info
+            localStorage.setItem('access_token', data.access_token);
+            localStorage.setItem('user_id', data.user.id);
+            localStorage.setItem('user_email', data.user.email);
+            localStorage.setItem('username', data.user.username);
+            
+            // Redirect to levels page
+            window.location.href = '/levels';
+        } else {
+            errorDiv.textContent = data.error || 'Login failed';
+            errorDiv.classList.remove('d-none');
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        errorDiv.textContent = 'An error occurred during login';
+        errorDiv.classList.remove('d-none');
+    }
+}
+
+async function handleForgotPassword(event) {
+    event.preventDefault();
+    
+    const email = document.getElementById('email').value;
+    if (!email) {
+        alert('Please enter your email address');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/auth/forgot-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert('Password reset instructions have been sent to your email');
+        } else {
+            alert(data.error || 'Failed to process password reset request');
+        }
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        alert('An error occurred while processing your request');
+    }
+}
+</script>
+{% endblock %} 

@@ -4,41 +4,36 @@ from app.utils.email import send_verification_email, send_password_reset_email
 from app.utils.helpers import generate_verification_code
 from flask_jwt_extended import create_access_token, create_refresh_token
 from datetime import datetime, timedelta
+from werkzeug.security import check_password_hash
 
 class AuthService:
     @staticmethod
-    def register_user(email, password, username):
-        existing_user = User.query.filter_by(username=username).first()
-        if existing_user:
-            raise ValueError('Username already exists')
+    def register(email, password, username):
+        """
+        Register a new user and return access token
+        """
+        if User.query.filter_by(email=email).first():
+            raise ValueError("Email already registered")
 
-        verification_code = generate_verification_code()
-        new_user = User(
+        user = User(
             email=email,
-            username=username,
-            verification_code=verification_code,
-            verification_code_expires=datetime.utcnow() + timedelta(minutes=30)
+            password=password,
+            username=username
         )
-        new_user.set_password(password)
         
-        if not send_verification_email(new_user.email, verification_code):
-            raise RuntimeError('Failed to send verification email')
-
-        db.session.add(new_user)
+        db.session.add(user)
         db.session.commit()
-        
-        access_token = create_access_token(identity=new_user.id)
-        refresh_token = create_refresh_token(identity=new_user.id)
+
+        # Create access token
+        access_token = create_access_token(identity=user.id)
         
         return {
-            'user': {
-                'id': new_user.id,
-                'email': new_user.email,
-                'username': new_user.username,
-                'is_verified': new_user.is_verified
-            },
             'access_token': access_token,
-            'refresh_token': refresh_token
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'username': user.username
+            }
         }
 
     @staticmethod
@@ -95,22 +90,25 @@ class AuthService:
 
     @staticmethod
     def login(email, password):
+        """
+        Authenticate a user and return a JWT token
+        """
         user = User.query.filter_by(email=email).first()
         
-        if user and user.check_password(password):
-            access_token = create_access_token(identity=user.id)
-            refresh_token = create_refresh_token(identity=user.id)
-            
-            return {
-                'user': {
-                    'id': user.id,
-                    'email': user.email,
-                    'username': user.username
-                },
-                'access_token': access_token,
-                'refresh_token': refresh_token
+        if not user or not check_password_hash(user.password, password):
+            raise ValueError("Invalid email or password")
+
+        # Create access token
+        access_token = create_access_token(identity=user.id)
+        
+        return {
+            'access_token': access_token,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'username': user.username
             }
-        raise ValueError('Invalid email or password')
+        }
 
     @staticmethod
     def delete_user(email):

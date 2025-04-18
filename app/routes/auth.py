@@ -14,13 +14,13 @@ def register():
         return jsonify({'error': 'Missing required fields'}), 400
     
     try:
-        result = AuthService.register_user(
+        result = AuthService.register(
             email=data['email'],
             password=data['password'],
             username=data['username']
         )
         return jsonify({
-            'message': 'User registered successfully. Please check your email for verification code.',
+            'message': 'User registered successfully',
             **result
         }), 201
     except ValueError as e:

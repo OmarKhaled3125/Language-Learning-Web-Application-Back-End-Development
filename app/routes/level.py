@@ -4,12 +4,16 @@ from werkzeug.exceptions import BadRequest, NotFound, RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 import os
 import uuid
+from app.extensions import db
+from app.models.level import Level
+from flask_jwt_extended import jwt_required
+from http import HTTPStatus
 
-level_bp = Blueprint('level', __name__)
+level_bp = Blueprint('level', __name__, url_prefix='/api/levels')
 
 # Ensure upload directory exists
 def ensure_upload_dir():
-    upload_dir = os.path.join(current_app.static_folder, 'uploads')
+    upload_dir = os.path.join(current_app.static_folder, 'uploads', 'levels')
     if not os.path.exists(upload_dir):
         os.makedirs(upload_dir)
     return upload_dir
@@ -41,6 +45,7 @@ def validate_image(file):
 
 # API Routes
 @level_bp.route('/', methods=['GET'])
+@jwt_required()
 def get_all_levels():
     try:
         levels = LevelService.get_all()
@@ -49,6 +54,7 @@ def get_all_levels():
         return jsonify({'error': 'Failed to retrieve levels: ' + str(e)}), 500
 
 @level_bp.route('/<int:level_id>', methods=['GET'])
+@jwt_required()
 def get_level(level_id):
     try:
         level = LevelService.get_by_id(level_id)
@@ -61,52 +67,88 @@ def get_level(level_id):
         return jsonify({'error': f'Failed to retrieve level {level_id}: {str(e)}'}), 500
 
 @level_bp.route('/', methods=['POST'])
+@jwt_required()
 def create_level():
     try:
-        data = request.get_json()
-        if not data:
-            raise BadRequest('No data provided')
+        # Handle image upload if present
+        image_url = None
+        if 'image' in request.files:
+            file = request.files['image']
+            validate_image(file)
+            
+            # Generate unique filename
+            filename = secure_filename(file.filename)
+            ext = filename.rsplit('.', 1)[1].lower()
+            new_filename = f"{uuid.uuid4()}.{ext}"
+            
+            # Save file
+            upload_dir = ensure_upload_dir()
+            file_path = os.path.join(upload_dir, new_filename)
+            file.save(file_path)
+            
+            # Generate URL
+            image_url = f'/static/uploads/levels/{new_filename}'
         
-        if 'name' not in data or not data['name'].strip():
+        # Get form data
+        name = request.form.get('name')
+        description = request.form.get('description', '')
+        
+        if not name or not name.strip():
             raise BadRequest('Level name is required')
         
-        # Sanitize input
-        data['name'] = data['name'].strip()
-        if 'description' in data:
-            data['description'] = data['description'].strip()
-        if 'image' in data:
-            data['image'] = data['image'].strip()
-            if data['image'].startswith('data:'):
-                raise BadRequest('Invalid image format. Please upload the image first.')
+        # Create level
+        level_data = {
+            'name': name.strip(),
+            'description': description.strip(),
+            'image_url': image_url
+        }
         
-        level = LevelService.create(data)
+        level = LevelService.create(level_data)
         return jsonify(level), 201
-    except BadRequest as e:
+    except (BadRequest, RequestEntityTooLarge) as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': f'Failed to create level: {str(e)}'}), 500
 
 @level_bp.route('/<int:level_id>', methods=['PUT'])
+@jwt_required()
 def update_level(level_id):
     try:
-        data = request.get_json()
-        if not data:
-            raise BadRequest('No data provided')
+        # Handle image upload if present
+        image_url = None
+        if 'image' in request.files:
+            file = request.files['image']
+            validate_image(file)
+            
+            # Generate unique filename
+            filename = secure_filename(file.filename)
+            ext = filename.rsplit('.', 1)[1].lower()
+            new_filename = f"{uuid.uuid4()}.{ext}"
+            
+            # Save file
+            upload_dir = ensure_upload_dir()
+            file_path = os.path.join(upload_dir, new_filename)
+            file.save(file_path)
+            
+            # Generate URL
+            image_url = f'/static/uploads/levels/{new_filename}'
         
-        if 'name' in data and not data['name'].strip():
-            raise BadRequest('Level name cannot be empty')
+        # Get form data
+        name = request.form.get('name')
+        description = request.form.get('description')
         
-        # Sanitize input
-        if 'name' in data:
-            data['name'] = data['name'].strip()
-        if 'description' in data:
-            data['description'] = data['description'].strip()
-        if 'image' in data:
-            data['image'] = data['image'].strip()
-            if data['image'].startswith('data:'):
-                raise BadRequest('Invalid image format. Please upload the image first.')
+        # Update data
+        update_data = {}
+        if name is not None:
+            if not name.strip():
+                raise BadRequest('Level name cannot be empty')
+            update_data['name'] = name.strip()
+        if description is not None:
+            update_data['description'] = description.strip()
+        if image_url:
+            update_data['image_url'] = image_url
         
-        level = LevelService.update(level_id, data)
+        level = LevelService.update(level_id, update_data)
         if not level:
             raise NotFound(f'Level with ID {level_id} not found')
         return jsonify(level), 200
@@ -116,6 +158,7 @@ def update_level(level_id):
         return jsonify({'error': f'Failed to update level {level_id}: {str(e)}'}), 500
 
 @level_bp.route('/<int:level_id>', methods=['DELETE'])
+@jwt_required()
 def delete_level(level_id):
     try:
         result = LevelService.delete(level_id)
@@ -125,32 +168,4 @@ def delete_level(level_id):
     except NotFound as e:
         return jsonify({'error': str(e)}), 404
     except Exception as e:
-        return jsonify({'error': f'Failed to delete level {level_id}: {str(e)}'}), 500
-
-@level_bp.route('/upload', methods=['POST'])
-def upload_file():
-    try:
-        if 'image' not in request.files:
-            raise BadRequest('No image file provided')
-        
-        file = request.files['image']
-        validate_image(file)
-        
-        # Generate unique filename
-        filename = secure_filename(file.filename)
-        ext = filename.rsplit('.', 1)[1].lower()
-        new_filename = f"{uuid.uuid4()}.{ext}"
-        
-        # Save file
-        upload_dir = ensure_upload_dir()
-        file_path = os.path.join(upload_dir, new_filename)
-        file.save(file_path)
-        
-        # Return URL
-        return jsonify({
-            'url': f'/static/uploads/levels/{new_filename}'
-        }), 201
-    except (BadRequest, RequestEntityTooLarge) as e:
-        return jsonify({'error': str(e)}), 413 if isinstance(e, RequestEntityTooLarge) else 400
-    except Exception as e:
-        return jsonify({'error': f'Failed to upload image: {str(e)}'}), 500 
+        return jsonify({'error': f'Failed to delete level {level_id}: {str(e)}'}), 500 

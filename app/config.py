@@ -16,3 +16,7 @@ class Config:
     MAIL_USERNAME = 'linguazone3125@gmail.com'
     MAIL_PASSWORD = 'fcuojtyzjwrcpltg'
     MAIL_DEFAULT_SENDER = 'linguazone3125@gmail.com'
+
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+    MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB max file size
