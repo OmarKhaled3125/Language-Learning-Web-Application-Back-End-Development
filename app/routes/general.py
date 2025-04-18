@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from app.services.general_service import GeneralService
 
 general_bp = Blueprint('general', __name__)
 
@@ -6,9 +7,11 @@ def create_crud_routes(endpoint):
     # Unique function for `GET` and `POST`
     def get_and_create():
         if request.method == 'GET':
-            return jsonify({"message": f"Get all {endpoint}"}), 200
+            result = GeneralService.get_all(endpoint)
+            return jsonify(result), 200
         elif request.method == 'POST':
-            return jsonify({"message": f"Create {endpoint}"}), 201
+            result = GeneralService.create(endpoint)
+            return jsonify(result), 201
         else:
             return jsonify({"error": "Method Not Allowed"}), 405
 
@@ -23,11 +26,14 @@ def create_crud_routes(endpoint):
     # Unique function for `GET`, `PUT`, and `DELETE` with ID
     def manage_by_id(id):
         if request.method == 'GET':
-            return jsonify({"message": f"Get {endpoint} with id {id}"}), 200
+            result = GeneralService.get_by_id(endpoint, id)
+            return jsonify(result), 200
         elif request.method == 'PUT':
-            return jsonify({"message": f"Edit {endpoint} with id {id}"}), 200
+            result = GeneralService.update_by_id(endpoint, id)
+            return jsonify(result), 200
         elif request.method == 'DELETE':
-            return jsonify({"message": f"Delete {endpoint} with id {id}"}), 200
+            result = GeneralService.delete_by_id(endpoint, id)
+            return jsonify(result), 200
         # Ensure that unsupported methods return a valid response
         return jsonify({"error": "Method not allowed"}), 405  # Return a 405 error for unsupported methods
 
@@ -52,4 +58,5 @@ for route in ENDPOINTS:
 # UPLOAD ENDPOINT
 @general_bp.route('/upload', methods=['POST'])
 def upload():
-    return jsonify({"message": "File uploaded successfully"}), 201
+    result = GeneralService.upload_file()
+    return jsonify(result), 201
