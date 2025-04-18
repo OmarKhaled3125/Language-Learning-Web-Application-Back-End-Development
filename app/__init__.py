@@ -3,6 +3,8 @@ from app.config import Config
 from app.extensions import db, jwt, mail
 from app.routes.auth import auth_bp
 from app.routes.general import general_bp
+from app.routes.level import level_bp
+from app.routes.pages import pages_bp
 from flask_migrate import Migrate
 
 
@@ -19,6 +21,8 @@ def create_app(config_class=Config):
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(general_bp)
+    app.register_blueprint(level_bp, url_prefix='/api/levels')
+    app.register_blueprint(pages_bp)
 
     # Create database tables
     with app.app_context():

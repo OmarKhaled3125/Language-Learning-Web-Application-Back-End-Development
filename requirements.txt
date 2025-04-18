@@ -10,4 +10,6 @@ python-jose[cryptography]
 passlib
 flask-mail
 sendgrid==6.9.1
-db
+mysqlclient
+pymysql
+cryptography
