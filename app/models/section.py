@@ -1,4 +1,4 @@
-from app.extensions import db
+from app import db
 from datetime import datetime
 
 class Section(db.Model):
@@ -14,6 +14,7 @@ class Section(db.Model):
 
     # Relationships
     level = db.relationship('Level', back_populates='sections')
+    questions = db.relationship('Question', back_populates='section', lazy=True, cascade='all, delete-orphan')
 
     def to_dict(self):
         return {
@@ -22,6 +23,7 @@ class Section(db.Model):
             'description': self.description,
             'image': self.image,
             'level_id': self.level_id,
+            'questions': [question.to_dict() for question in self.questions],
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         } 

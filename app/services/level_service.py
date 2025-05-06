@@ -1,26 +1,33 @@
-from app.extensions import db
+from app import db
 from app.models.level import Level
 from sqlalchemy.exc import SQLAlchemyError
 import os
+from app.utils.file_upload import save_file, delete_file
+
 
 class LevelService:
-    @staticmethod
-    def get_all():
+    def get_all(self):
         levels = Level.query.all()
         return [level.to_dict() for level in levels]
 
-    @staticmethod
-    def get_by_id(level_id):
+    def get_by_id(self, level_id):
         level = Level.query.get(level_id)
         return level.to_dict() if level else None
 
-    @staticmethod
-    def create(data):
+    def create_level(self, data, file=None):
         try:
+            # Handle file upload if provided
+            image_url = None
+            if file:
+                try:
+                    image_url = save_file(file, 'levels')
+                except Exception as e:
+                    raise Exception(f"Failed to save file: {str(e)}")
+
             level = Level(
                 name=data['name'],
                 description=data.get('description', ''),
-                image_url=data.get('image_url')
+                image_url=image_url
             )
             db.session.add(level)
             db.session.commit()
@@ -29,21 +36,24 @@ class LevelService:
             db.session.rollback()
             raise Exception(f"Database error: {str(e)}")
 
-    @staticmethod
-    def update(level_id, data):
+    def update_level(self, level_id, data, file=None):
         try:
             level = Level.query.get(level_id)
             if not level:
                 return None
             
-            # If updating image, delete old image if exists
-            if 'image_url' in data and level.image_url:
+            # Handle file upload if provided
+            if file:
                 try:
-                    old_image_path = os.path.join(os.getcwd(), 'app', level.image_url.lstrip('/'))
-                    if os.path.exists(old_image_path):
-                        os.remove(old_image_path)
+                    # Delete old image if exists
+                    if level.image_url:
+                        delete_file(level.image_url)
+                       
+                    # Save new image
+                    image_url = save_file(file, 'levels')
+                    data['image_url'] = image_url
                 except Exception as e:
-                    print(f"Warning: Failed to delete old image: {str(e)}")
+                    raise Exception(f"Failed to save new file: {str(e)}")
             
             # Update fields
             for key, value in data.items():
@@ -55,8 +65,7 @@ class LevelService:
             db.session.rollback()
             raise Exception(f"Database error: {str(e)}")
 
-    @staticmethod
-    def delete(level_id):
+    def delete_level(self, level_id):
         try:
             level = Level.query.get(level_id)
             if not level:
@@ -65,15 +74,16 @@ class LevelService:
             # Delete associated image if exists
             if level.image_url:
                 try:
-                    image_path = os.path.join(os.getcwd(), 'app', level.image_url.lstrip('/'))
-                    if os.path.exists(image_path):
-                        os.remove(image_path)
+                    delete_file(level.image_url)
                 except Exception as e:
-                    print(f"Warning: Failed to delete image: {str(e)}")
+                    raise Exception(f"Failed to delete image for level {level_id}: {str(e)}")
             
-            db.session.delete(level)
-            db.session.commit()
-            return True
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            raise Exception(f"Database error: {str(e)}") 
+            try:
+                db.session.delete(level)
+                db.session.commit()
+                return True
+            except SQLAlchemyError as e:
+                db.session.rollback()
+                raise Exception(f"Database error while deleting level: {str(e)}")
+        except Exception as e:
+            raise Exception(f"Failed to delete level: {str(e)}") 

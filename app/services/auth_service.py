@@ -1,4 +1,4 @@
-from app.extensions import db
+from app import db
 from app.models.user import User
 from app.utils.email import send_verification_email, send_password_reset_email
 from app.utils.helpers import generate_verification_code
@@ -8,7 +8,7 @@ from werkzeug.security import check_password_hash
 
 class AuthService:
     @staticmethod
-    def register(email, password, username):
+    def register(email, password, username , role):
         """
         Register a new user and return access token
         """
@@ -17,9 +17,10 @@ class AuthService:
 
         user = User(
             email=email,
-            password=password,
-            username=username
+            username=username,
+            role=role
         )
+        user.set_password(password)
         
         db.session.add(user)
         db.session.commit()
@@ -32,7 +33,8 @@ class AuthService:
             'user': {
                 'id': user.id,
                 'email': user.email,
-                'username': user.username
+                'username': user.username,
+                'role': user.role.value
             }
         }
 
@@ -93,9 +95,9 @@ class AuthService:
         """
         Authenticate a user and return a JWT token
         """
-        user = User.query.filter_by(email=email).first()
+        user = User.query.filter_by(email=email, is_verified=True).first()
         
-        if not user or not check_password_hash(user.password, password):
+        if not user or not user.check_password(password):
             raise ValueError("Invalid email or password")
 
         # Create access token
@@ -106,7 +108,8 @@ class AuthService:
             'user': {
                 'id': user.id,
                 'email': user.email,
-                'username': user.username
+                'username': user.username,
+                'role': user.role.value
             }
         }
 

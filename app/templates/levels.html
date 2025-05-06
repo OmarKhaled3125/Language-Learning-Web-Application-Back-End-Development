@@ -1,314 +1,264 @@
 {% extends "base.html" %}
 
-{% block title %}Levels - Language Learning App{% endblock %}
+{% block title %}Level Management - Language Learning App{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Levels</h2>
-        <button class="btn btn-primary" id="createLevelBtn">
-            <i class="fas fa-plus me-2"></i>Create New Level
-        </button>
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Level Management</h2>
+        </div>
+        <div class="col text-end">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addLevelModal">
+                <i class="fas fa-plus"></i> Add New Level
+            </button>
+        </div>
     </div>
 
-    <div class="row" id="levelsContainer">
-        <!-- Levels will be loaded here -->
+    <!-- Levels List -->
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Description</th>
+                                    <th>Image</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="levelsTableBody">
+                                <!-- Levels will be loaded here dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- Create/Edit Level Modal -->
-<div class="modal fade" id="levelModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+<!-- Add Level Modal -->
+<div class="modal fade" id="addLevelModal" tabindex="-1">
+    <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="modalTitle">Create Level</h5>
+                <h5 class="modal-title">Add New Level</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="levelForm" enctype="multipart/form-data">
-                    <input type="hidden" id="levelId">
+                <form id="addLevelForm" onsubmit="handleFormSubmit(event, '/api/level', 'POST', function(data) {
+                    loadLevels();
+                    $('#addLevelModal').modal('hide');
+                })">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
                     
-                    <!-- Image Upload Component -->
-                    {% with id="levelImage" %}
-                    {% include "components/image_upload.html" %}
-                    {% endwith %}
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
                     
-                    <!-- Level Details Section -->
-                    <div class="level-details">
-                        <div class="form-floating mb-3">
-                            <input type="text" class="form-control" id="levelName" placeholder="Enter level name" required>
-                            <label for="levelName">Level Name</label>
+                    <div class="mb-3">
+                        <label class="form-label">Level Image</label>
+                        <div class="drop-zone" id="levelImageDropZone">
+                            <div class="drop-zone-prompt">
+                                <i class="fas fa-cloud-upload-alt fa-2x mb-2"></i>
+                                <p>Drag and drop an image here or click to select</p>
+                            </div>
+                            <input type="file" name="image" accept="image/*" class="drop-zone-input">
                         </div>
-                        
-                        <div class="form-floating mb-3">
-                            <textarea class="form-control" id="levelDescription" style="height: 100px" placeholder="Enter description"></textarea>
-                            <label for="levelDescription">Description</label>
-                        </div>
+                    </div>
+                    
+                    <div class="text-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Add Level</button>
                     </div>
                 </form>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Level Modal -->
+<div class="modal fade" id="editLevelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Level</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editLevelForm" onsubmit="handleFormSubmit(event, '/api/level/' + currentLevelId, 'PUT', function(data) {
+                    loadLevels();
+                    $('#editLevelModal').modal('hide');
+                })">
+                    <div class="mb-3">
+                        <label for="editName" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="editName" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="editDescription" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Level Image</label>
+                        <div class="drop-zone" id="editLevelImageDropZone">
+                            <div class="drop-zone-prompt">
+                                <i class="fas fa-cloud-upload-alt fa-2x mb-2"></i>
+                                <p>Drag and drop an image here or click to select</p>
+                            </div>
+                            <input type="file" name="image" accept="image/*" class="drop-zone-input">
+                        </div>
+                    </div>
+                    
+                    <div class="text-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Level Modal -->
+<div class="modal fade" id="deleteLevelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Level</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this level? This action cannot be undone.</p>
+            </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="saveLevelBtn">
-                    <i class="fas fa-save me-2"></i>Save Level
-                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="handleDeleteLevel()">Delete</button>
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/components/drop-zone.js') }}"></script>
 <script>
-let levelModal;
-let levelForm;
-let createLevelBtn;
-let saveLevelBtn;
-let imageUpload;
+let currentLevelId = null;
 
+// Initialize drop zones
 document.addEventListener('DOMContentLoaded', function() {
-    // Check authentication first
-    if (!isAuthenticated()) {
-        window.location.href = '/login';
-        return;
-    }
-
-    levelModal = new bootstrap.Modal(document.getElementById('levelModal'));
-    levelForm = document.getElementById('levelForm');
-    createLevelBtn = document.getElementById('createLevelBtn');
-    saveLevelBtn = document.getElementById('saveLevelBtn');
-    
-    // Initialize image upload using the container ID
-    imageUpload = initImageUpload('levelImage_container');
-
-    // Load levels and set up other event listeners
+    initDropZone('levelImageDropZone', 'levelImagePreview');
+    initDropZone('editLevelImageDropZone', 'editLevelImagePreview');
     loadLevels();
-    createLevelBtn.addEventListener('click', showCreateModal);
-    saveLevelBtn.addEventListener('click', saveLevel);
 });
 
-function createLevelCard(level) {
-    const col = document.createElement('div');
-    col.className = 'col-md-4 mb-4';
-    
-    col.innerHTML = `
-        <div class="card level-card">
-            <div class="card-image-wrapper">
-                ${level.image_url 
-                    ? `<img src="${level.image_url}" class="card-img-top" alt="${level.name}">`
-                    : `<div class="card-img-placeholder">
-                        <i class="fas fa-image"></i>
-                       </div>`
-                }
-            </div>
-            <div class="card-body">
-                <h5 class="card-title">${level.name}</h5>
-                <p class="card-text">${level.description || ''}</p>
-                <div class="btn-group">
-                    <button class="btn btn-primary" onclick="viewSections(${level.id})">
-                        <i class="fas fa-list me-2"></i>Sections
-                    </button>
-                    <button class="btn btn-warning" onclick="editLevel(${level.id})">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-danger" onclick="deleteLevel(${level.id})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    return col;
-}
-
-async function loadLevels() {
-    try {
-        const response = await fetchWithAuth('/api/levels');
-        
-        if (!response.ok) {
-            if (response.status === 401) {
-                // Let fetchWithAuth handle the redirect
-                return;
+// Load levels
+function loadLevels() {
+    fetchWithAuth('/api/level')
+        .then(response => response.json())
+        .then(response => {
+            if (response.status === 'success' && response.data) {
+                const tableBody = document.getElementById('levelsTableBody');
+                tableBody.innerHTML = '';
+                
+                response.data.forEach(level => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${level.name}</td>
+                        <td>${level.description || ''}</td>
+                        <td>
+                            ${level.image_url ? 
+                                `<img src="${level.image_url}" alt="${level.name}" class="img-thumbnail" style="max-height: 50px;">` :
+                                '<span class="text-muted">No image</span>'
+                            }
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-primary" onclick="showEditModal(${level.id})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="showDeleteModal(${level.id})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                <a href="/sections?level_id=${level.id}" class="btn btn-sm btn-info">
+                                    <i class="fas fa-list"></i>
+                                </a>
+                            </div>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } else {
+                console.error('Invalid response format:', response);
+                showAlert('Failed to load levels', 'danger');
             }
-            throw new Error('Failed to load levels');
-        }
-        
-        const levels = await response.json();
-        
-        const container = document.getElementById('levelsContainer');
-        container.innerHTML = '';
-        
-        if (levels.length === 0) {
-            container.innerHTML = `
-                <div class="col-12 text-center">
-                    <p class="text-muted">No levels found. Create your first level!</p>
-                </div>
-            `;
-            return;
-        }
-        
-        levels.forEach(level => {
-            const levelCard = createLevelCard(level);
-            container.appendChild(levelCard);
+        })
+        .catch(error => {
+            console.error('Error loading levels:', error);
+            showAlert('Failed to load levels', 'danger');
         });
-    } catch (error) {
-        console.error('Error loading levels:', error);
-        const container = document.getElementById('levelsContainer');
-        container.innerHTML = `
-            <div class="col-12">
-                <div class="alert alert-danger">
-                    Failed to load levels. Please try again later.
-                </div>
-            </div>
-        `;
-    }
 }
 
-function showCreateModal() {
-    document.getElementById('modalTitle').textContent = 'Create Level';
-    document.getElementById('levelId').value = '';
-    document.getElementById('levelName').value = '';
-    document.getElementById('levelDescription').value = '';
+// Show edit modal
+function showEditModal(levelId) {
+    currentLevelId = levelId;
     
-    // Clear image if imageUpload is available
-    if (imageUpload && typeof imageUpload.clearImage === 'function') {
-        imageUpload.clearImage();
-    } else {
-        // Fallback to direct element manipulation
-        const preview = document.getElementById('levelImage_preview');
-        const uploadContent = document.getElementById('levelImage_content');
-        if (preview) {
-            preview.innerHTML = '';
-            preview.style.display = 'none';
-        }
-        if (uploadContent) {
-            uploadContent.style.display = 'flex';
-        }
-    }
-    
-    levelModal.show();
-}
-
-async function editLevel(levelId) {
-    try {
-        const response = await fetchWithAuth(`/api/levels/${levelId}`);
-        
-        if (!response.ok) {
-            if (response.status === 401) {
-                return; // Let fetchWithAuth handle the redirect
-            }
-            throw new Error('Failed to load level details');
-        }
-        
-        const level = await response.json();
-        
-        document.getElementById('modalTitle').textContent = 'Edit Level';
-        document.getElementById('levelId').value = level.id;
-        document.getElementById('levelName').value = level.name;
-        document.getElementById('levelDescription').value = level.description || '';
-        
-        // Show existing image if available
-        if (level.image_url) {
-            const preview = document.getElementById('levelImage_preview');
-            const uploadContent = document.getElementById('levelImage_content');
+    fetchWithAuth(`/api/level/${levelId}`)
+        .then(response => response.json())
+        .then(level => {
+            document.getElementById('editName').value = level.name;
+            document.getElementById('editDescription').value = level.description || '';
             
-            preview.innerHTML = `
-                <div class="preview-content">
-                    <img src="${level.image_url}" alt="Preview">
-                    <button type="button" class="btn btn-icon btn-remove" onclick="clearImage_levelImage()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `;
+            const dropZone = document.getElementById('editLevelImageDropZone');
+            if (level.image_url) {
+                dropZone.querySelector('.drop-zone-prompt').innerHTML = `
+                    <img src="${level.image_url}" alt="${level.name}" class="img-thumbnail" style="max-height: 100px;">
+                `;
+            }
             
-            uploadContent.style.display = 'none';
-            preview.style.display = 'block';
-        }
-        
-        levelModal.show();
-    } catch (error) {
-        console.error('Error loading level:', error);
-        alert('Failed to load level details');
-    }
+            $('#editLevelModal').modal('show');
+        })
+        .catch(error => {
+            console.error('Error loading level:', error);
+            showAlert('Failed to load level details', 'danger');
+        });
 }
 
-async function saveLevel() {
-    const levelId = document.getElementById('levelId').value;
-    const name = document.getElementById('levelName').value;
-    const description = document.getElementById('levelDescription').value;
-    
-    // Check if required fields are filled
-    if (!name.trim()) {
-        alert('Level name is required');
-        return;
-    }
-    
-    try {
-        const url = levelId ? `/api/levels/${levelId}` : '/api/levels';
-        const method = levelId ? 'PUT' : 'POST';
-        
-        // Create FormData to handle file upload
-        const formData = new FormData();
-        formData.append('name', name);
-        formData.append('description', description);
-        
-        // Only append image if imageUpload is available and has an image
-        if (imageUpload && typeof imageUpload.getCurrentImage === 'function') {
-            const image = imageUpload.getCurrentImage();
-            if (image) {
-                formData.append('image', image);
-            }
-        }
-        
-        const response = await fetchWithAuth(url, {
-            method: method,
-            body: formData
-        });
-        
-        if (!response.ok) {
-            if (response.status === 401) {
-                return; // Let fetchWithAuth handle the redirect
-            }
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to save level');
-        }
-        
-        levelModal.hide();
-        loadLevels();
-    } catch (error) {
-        console.error('Error saving level:', error);
-        alert(error.message || 'Failed to save level');
-    }
+// Show delete modal
+function showDeleteModal(levelId) {
+    currentLevelId = levelId;
+    $('#deleteLevelModal').modal('show');
 }
 
-async function deleteLevel(levelId) {
-    if (!confirm('Are you sure you want to delete this level?')) {
-        return;
-    }
+// Handle level deletion
+function handleDeleteLevel() {
+    if (!currentLevelId) return;
     
-    try {
-        const response = await fetchWithAuth(`/api/levels/${levelId}`, {
-            method: 'DELETE'
-        });
-        
-        if (!response.ok) {
-            if (response.status === 401) {
-                return; // Let fetchWithAuth handle the redirect
-            }
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to delete level');
-        }
-        
+    fetchWithAuth(`/api/level/${currentLevelId}`, {
+        method: 'DELETE'
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Delete failed');
+        return response.json();
+    })
+    .then(data => {
+        showAlert('Level deleted successfully', 'success');
+        $('#deleteLevelModal').modal('hide');
         loadLevels();
-    } catch (error) {
+    })
+    .catch(error => {
         console.error('Error deleting level:', error);
-        alert(error.message || 'Failed to delete level');
-    }
-}
-
-function viewSections(levelId) {
-    window.location.href = `/sections?level_id=${levelId}`;
+        showAlert('Failed to delete level', 'danger');
+    });
 }
 </script>
 {% endblock %} 
