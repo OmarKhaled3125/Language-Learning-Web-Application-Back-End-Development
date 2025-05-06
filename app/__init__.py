@@ -5,12 +5,20 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_mail import Mail
 import os
+import logging
 
 # Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
 mail = Mail()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 def create_app(test_config=None):
     # Create and configure the app
@@ -55,14 +63,16 @@ def create_app(test_config=None):
     mail.init_app(app)
     CORS(app)
 
+    # Register error handlers
+    from app.utils.error_handlers import register_error_handlers
+    register_error_handlers(app)
+
     # Register blueprints
-    from app.controllers.web.page_controller import pages_bp
     from app.controllers.api.auth_controller import auth_bp
     from app.controllers.api.level_controller import level_bp
     from app.controllers.api.section_controller import section_bp
     from app.controllers.api.question_controller import question_bp
 
-    app.register_blueprint(pages_bp)
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(level_bp, url_prefix='/api/level')
     app.register_blueprint(section_bp, url_prefix='/api/section')

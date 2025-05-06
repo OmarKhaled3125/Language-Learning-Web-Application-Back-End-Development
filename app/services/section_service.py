@@ -1,6 +1,3 @@
-"""
-Section service module that handles section-related business logic.
-"""
 from typing import List, Optional, Dict, Any
 from werkzeug.datastructures import FileStorage
 from werkzeug.exceptions import BadRequest
@@ -24,16 +21,6 @@ class SectionService(BaseService):
     def create_section(self, data: Dict[str, Any], file: Optional[FileStorage] = None) -> Section:
         """
         Create a new section with optional file upload.
-        
-        Args:
-            data: Dictionary containing section data
-            file: Optional file to upload
-            
-        Returns:
-            Section: Created section instance
-            
-        Raises:
-            BadRequest: If required data is missing
         """
         if not data.get('name'):
             raise BadRequest("Section name is required")
@@ -43,21 +30,13 @@ class SectionService(BaseService):
             
         if file:
             file_path = save_file(file, 'sections')
-            data['content_file'] = file_path
+            data['image'] = file_path
             
         return self.create(data)
     
     def update_section(self, section_id: int, data: Dict[str, Any], file: Optional[FileStorage] = None) -> Optional[Section]:
         """
         Update an existing section with optional file upload.
-        
-        Args:
-            section_id: ID of the section to update
-            data: Dictionary containing updated section data
-            file: Optional new file to upload
-            
-        Returns:
-            Optional[Section]: Updated section instance if found, None otherwise
         """
         section = self.get_by_id(section_id)
         if not section:
@@ -65,55 +44,43 @@ class SectionService(BaseService):
             
         if file:
             # Delete old file if exists
-            if section.content_file:
-                delete_file(section.content_file)
+            if section.image:
+                delete_file(section.image)
             # Save new file
             file_path = save_file(file, 'sections')
-            data['content_file'] = file_path
+            data['image'] = file_path
             
         return self.update(section_id, data)
     
     def delete_section(self, section_id: int) -> bool:
         """
         Delete a section and its associated file.
-        
-        Args:
-            section_id: ID of the section to delete
-            
-        Returns:
-            bool: True if deletion was successful, False otherwise
         """
         section = self.get_by_id(section_id)
         if not section:
             return False
             
         # Delete associated file if exists
-        if section.content_file:
-            delete_file(section.content_file)
+        if section.image:
+            delete_file(section.image)
             
         return self.delete(section_id)
     
     def get_sections_by_level(self, level_id: int) -> List[Section]:
         """
         Get all sections for a specific level.
-        
-        Args:
-            level_id: ID of the level
-            
-        Returns:
-            List[Section]: List of sections for the specified level
         """
         return self.query().filter_by(level_id=level_id).all()
 
     @staticmethod
     def get_all():
         sections = Section.query.all()
-        return [section.to_dict() for section in sections]
+        return [section for section in sections]
 
     @staticmethod
     def get_by_id(section_id):
         section = Section.query.get(section_id)
-        return section.to_dict() if section else None
+        return section if section else None
 
     @staticmethod
     def create(data):
@@ -126,7 +93,7 @@ class SectionService(BaseService):
             )
             db.session.add(section)
             db.session.commit()
-            return section.to_dict()
+            return section
         except SQLAlchemyError as e:
             db.session.rollback()
             raise Exception(f"Database error: {e}")
@@ -153,7 +120,7 @@ class SectionService(BaseService):
                 setattr(section, key, value)
 
             db.session.commit()
-            return section.to_dict()
+            return section
         except SQLAlchemyError as e:
             db.session.rollback()
             raise Exception(f"Database error: {e}")

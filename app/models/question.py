@@ -14,22 +14,22 @@ class AnswerType(enum.Enum):
 class ChoiceType(enum.Enum):
     TEXT = "text"
     IMAGE = "image"
-    VOICE = "voice"
+    AUDIO = "audio"
 
 class Question(db.Model):
     __tablename__ = 'questions'
 
     id = db.Column(db.Integer, primary_key=True)
     section_id = db.Column(db.Integer, db.ForeignKey('sections.id'), nullable=False)
+    section = db.relationship('Section', back_populates='questions')
     question_type = db.Column(db.Enum(QuestionType), nullable=False)
-    question_content = db.Column(db.String(255), nullable=False)  # Text content or file path
+    question_content = db.Column(db.String(255), nullable=False)
     answer_type = db.Column(db.Enum(AnswerType), nullable=False)
-    correct_answer = db.Column(db.String(255), nullable=True)  # For fill-in-the-blank questions
+    correct_answer = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    section = db.relationship('Section', back_populates='questions')
     choices = db.relationship('QuestionChoice', back_populates='question', cascade='all, delete-orphan')
 
     def to_dict(self):
@@ -46,11 +46,7 @@ class Question(db.Model):
         }
 
     def get_correct_answers(self):
-        """
-        Get the correct answer(s) for the question.
-        For multiple choice, returns list of correct choice IDs.
-        For fill in blank, returns the correct answer string.
-        """
+        """ Get the correct answer(s) for the question. """
         if self.answer_type == AnswerType.MULTIPLE_CHOICE:
             return [choice.id for choice in self.choices if choice.is_correct]
         return self.correct_answer
@@ -61,7 +57,7 @@ class QuestionChoice(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
     choice_type = db.Column(db.Enum(ChoiceType), nullable=False)
-    content = db.Column(db.String(255), nullable=False)  # Text content or file path
+    content = db.Column(db.String(255), nullable=False)
     is_correct = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -72,7 +68,6 @@ class QuestionChoice(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
-            'question_id': self.question_id,
             'choice_type': self.choice_type.value,
             'content': self.content,
             'is_correct': self.is_correct,

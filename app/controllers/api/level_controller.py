@@ -1,6 +1,3 @@
-"""
-Level controller module that handles level-related API endpoints.
-"""
 from typing import Dict, Any, Tuple
 from flask import request
 from werkzeug.exceptions import BadRequest, NotFound
@@ -9,6 +6,7 @@ import logging
 from app.controllers.api.base_controller import BaseController
 from app.services.level_service import LevelService
 from app.utils.file_upload import validate_file_upload, FileUploadError
+from app.utils.auth_decorators import token_required, admin_required
 
 logger = logging.getLogger(__name__)
 
@@ -23,24 +21,16 @@ class LevelController(BaseController):
     
     def _register_routes(self) -> None:
         """Register all routes for the level controller."""
-        # Register routes with and without trailing slash
-        self.blueprint.route('', methods=['GET'], strict_slashes=False)(self.get_levels)
-        self.blueprint.route('/', methods=['GET'], strict_slashes=False)(self.get_levels)
-        self.blueprint.route('/<int:level_id>', methods=['GET'], strict_slashes=False)(self.get_level)
-        self.blueprint.route('/<int:level_id>/', methods=['GET'], strict_slashes=False)(self.get_level)
-        self.blueprint.route('', methods=['POST'], strict_slashes=False)(self.create_level)
-        self.blueprint.route('/', methods=['POST'], strict_slashes=False)(self.create_level)
-        self.blueprint.route('/<int:level_id>', methods=['PUT'], strict_slashes=False)(self.update_level)
-        self.blueprint.route('/<int:level_id>/', methods=['PUT'], strict_slashes=False)(self.update_level)
-        self.blueprint.route('/<int:level_id>', methods=['DELETE'], strict_slashes=False)(self.delete_level)
-        self.blueprint.route('/<int:level_id>/', methods=['DELETE'], strict_slashes=False)(self.delete_level)
+        # Register routes with strict_slashes=False to handle both with and without trailing slash
+        self.blueprint.route('', methods=['GET'], strict_slashes=False)(token_required(self.get_levels))
+        self.blueprint.route('/<int:level_id>', methods=['GET'], strict_slashes=False)(token_required(self.get_level))
+        self.blueprint.route('', methods=['POST'], strict_slashes=False)(admin_required(self.create_level))
+        self.blueprint.route('/<int:level_id>', methods=['PUT'], strict_slashes=False)(admin_required(self.update_level))
+        self.blueprint.route('/<int:level_id>', methods=['DELETE'], strict_slashes=False)(admin_required(self.delete_level))
     
     def get_levels(self) -> Tuple[Dict[str, Any], int]:
         """
         Get all levels.
-        
-        Returns:
-            Tuple containing response dict and status code
         """
         try:
             levels = self.service.get_all()
@@ -52,41 +42,36 @@ class LevelController(BaseController):
     def get_level(self, level_id: int) -> Tuple[Dict[str, Any], int]:
         """
         Get a specific level by ID.
-        
-        Args:
-            level_id: ID of the level to retrieve
-            
-        Returns:
-            Tuple containing response dict and status code
         """
         try:
             level = self.service.get_by_id(level_id)
             if not level:
                 return self.error_response("Level not found", status_code=404)
-            return self.success_response(data=level)  # level is already a dict
+            return self.success_response(data=level)
         except Exception as e:
             logger.error(f"Error getting level {level_id}: {str(e)}")
             return self.error_response("Failed to retrieve level", status_code=500)
     
     def create_level(self) -> Tuple[Dict[str, Any], int]:
-        """
-        Create a new level.
-        
-        Returns:
-            Tuple containing response dict and status code
-        """
+        """ Create a new level. """
         try:
-            data = self.get_request_data()
+            # Support both JSON and form-data
+            if request.is_json:
+                data = request.get_json()
+                file = None
+            else:
+                data = request.form
+                file = request.files.get('image')
+
             if 'name' not in data:
                 return self.error_response("Name is required", status_code=400)
-            
-            file = request.files.get('image')
+
             if file:
                 try:
                     validate_file_upload(file)
                 except (BadRequest, FileUploadError) as e:
                     return self.error_response(str(e), status_code=400)
-            
+
             level = self.service.create_level(data, file)
             return self.success_response(
                 data=level,
@@ -103,23 +88,22 @@ class LevelController(BaseController):
     def update_level(self, level_id: int) -> Tuple[Dict[str, Any], int]:
         """
         Update an existing level.
-        
-        Args:
-            level_id: ID of the level to update
-            
-        Returns:
-            Tuple containing response dict and status code
         """
         try:
-            data = self.get_request_data()
-            file = request.files.get('image')
-            
+            # Support both JSON and form-data
+            if request.is_json:
+                data = request.get_json()
+                file = None
+            else:
+                data = request.form
+                file = request.files.get('image')
+
             if file:
                 try:
                     validate_file_upload(file)
                 except (BadRequest, FileUploadError) as e:
                     return self.error_response(str(e), status_code=400)
-            
+
             level = self.service.update_level(level_id, data, file)
             if not level:
                 return self.error_response("Level not found", status_code=404)
@@ -138,21 +122,12 @@ class LevelController(BaseController):
     def delete_level(self, level_id: int) -> Tuple[Dict[str, Any], int]:
         """
         Delete a level.
-        
-        Args:
-            level_id: ID of the level to delete
-            
-        Returns:
-            Tuple containing response dict and status code
         """
         try:
             if self.service.delete_level(level_id):
-                logger.info(f"Successfully deleted level {level_id}")
                 return self.success_response(message="Level deleted successfully")
-            logger.warning(f"Level {level_id} not found for deletion")
             return self.error_response("Level not found", status_code=404)
         except Exception as e:
-            logger.error(f"Error deleting level {level_id}: {str(e)}")
             return self.error_response(str(e), status_code=500)
 
 

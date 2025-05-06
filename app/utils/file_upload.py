@@ -1,6 +1,3 @@
-"""
-File upload utility module that handles file validation and storage.
-"""
 import os
 import uuid
 from typing import Optional
@@ -17,15 +14,7 @@ class FileUploadError(Exception):
 
 
 def get_upload_folder(folder: str) -> str:
-    """
-    Get the absolute path to the upload folder.
-    
-    Args:
-        folder: The subfolder within the upload directory
-        
-    Returns:
-        str: The absolute path to the upload folder
-    """
+    """ Get the absolute path to the upload folder. """
     try:
         # Ensure UPLOAD_FOLDER is configured
         if 'UPLOAD_FOLDER' not in current_app.config:
@@ -45,17 +34,7 @@ def get_upload_folder(folder: str) -> str:
 
 
 def validate_file_upload(file: FileStorage, allowed_extensions: Optional[set] = None) -> None:
-    """
-    Validate a file upload.
-    
-    Args:
-        file: The file to validate
-        allowed_extensions: Optional set of allowed file extensions
-        
-    Raises:
-        BadRequest: If the file is invalid
-        RequestEntityTooLarge: If the file is too large
-    """
+    """ Validate a file upload. """
     if not file:
         raise BadRequest("No file provided")
     
@@ -85,19 +64,7 @@ def validate_file_upload(file: FileStorage, allowed_extensions: Optional[set] = 
 
 
 def save_file(file: FileStorage, folder: str) -> str:
-    """
-    Save an uploaded file to the specified folder.
-    
-    Args:
-        file: The file to save
-        folder: The folder to save the file in
-        
-    Returns:
-        str: The relative path to the saved file
-        
-    Raises:
-        FileUploadError: If the file cannot be saved
-    """
+    """ Save an uploaded file to the specified folder.  """
     try:
         # Create upload directory if it doesn't exist
         upload_dir = get_upload_folder(folder)
@@ -120,15 +87,7 @@ def save_file(file: FileStorage, folder: str) -> str:
 
 
 def delete_file(file_path: str) -> None:
-    """
-    Delete a file from the filesystem.
-    
-    Args:
-        file_path: The relative path to the file to delete
-        
-    Raises:
-        FileUploadError: If the file cannot be deleted
-    """
+    """ Delete a file from the filesystem. """
     try:
         if not file_path:
             logger.warning("No file path provided for deletion")

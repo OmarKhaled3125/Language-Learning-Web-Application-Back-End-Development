@@ -1,13 +1,10 @@
-"""
-Section controller module that handles section-related API endpoints.
-"""
 from typing import Dict, Any, Tuple
 from flask import request
 from werkzeug.exceptions import BadRequest
-
 from app.controllers.api.base_controller import BaseController
 from app.services.section_service import SectionService
 from app.utils.file_upload import validate_file_upload
+from app.utils.auth_decorators import token_required, admin_required
 
 
 class SectionController(BaseController):
@@ -21,61 +18,44 @@ class SectionController(BaseController):
     
     def _register_routes(self) -> None:
         """Register all routes for the section controller."""
-        # Register routes with and without trailing slash
-        self.blueprint.route('', methods=['GET'], strict_slashes=False)(self.get_sections)
-        self.blueprint.route('/', methods=['GET'], strict_slashes=False)(self.get_sections)
-        self.blueprint.route('/<int:section_id>', methods=['GET'], strict_slashes=False)(self.get_section)
-        self.blueprint.route('/<int:section_id>/', methods=['GET'], strict_slashes=False)(self.get_section)
-        self.blueprint.route('', methods=['POST'], strict_slashes=False)(self.create_section)
-        self.blueprint.route('/', methods=['POST'], strict_slashes=False)(self.create_section)
-        self.blueprint.route('/<int:section_id>', methods=['PUT'], strict_slashes=False)(self.update_section)
-        self.blueprint.route('/<int:section_id>/', methods=['PUT'], strict_slashes=False)(self.update_section)
-        self.blueprint.route('/<int:section_id>', methods=['DELETE'], strict_slashes=False)(self.delete_section)
-        self.blueprint.route('/<int:section_id>/', methods=['DELETE'], strict_slashes=False)(self.delete_section)
+        # Register routes with strict_slashes=False to handle both with and without trailing slash
+        self.blueprint.route('', methods=['GET'], strict_slashes=False)(token_required(self.get_sections))
+        self.blueprint.route('/<int:section_id>', methods=['GET'], strict_slashes=False)(token_required(self.get_section))
+        self.blueprint.route('', methods=['POST'], strict_slashes=False)(admin_required(self.create_section))
+        self.blueprint.route('/<int:section_id>', methods=['PUT'], strict_slashes=False)(admin_required(self.update_section))
+        self.blueprint.route('/<int:section_id>', methods=['DELETE'], strict_slashes=False)(admin_required(self.delete_section))
     
     def get_sections(self) -> Tuple[Dict[str, Any], int]:
-        """
-        Get all sections or filter by level.
-        
-        Returns:
-            Tuple containing response dict and status code
-        """
+        """ Get all sections or filter by level. """
         level_id = request.args.get('level_id', type=int)
         sections = self.service.get_sections_by_level(level_id) if level_id else self.service.get_all()
         return self.success_response(data=[section.to_dict() for section in sections])
     
     def get_section(self, section_id: int) -> Tuple[Dict[str, Any], int]:
-        """
-        Get a specific section by ID.
-        
-        Args:
-            section_id: ID of the section to retrieve
-            
-        Returns:
-            Tuple containing response dict and status code
-        """
+        """ Get a specific section by ID. """
         section = self.service.get_by_id(section_id)
         if not section:
             return self.error_response("Section not found", status_code=404)
         return self.success_response(data=section.to_dict())
     
     def create_section(self) -> Tuple[Dict[str, Any], int]:
-        """
-        Create a new section.
-        
-        Returns:
-            Tuple containing response dict and status code
-        """
+        """ Create a new section. """
         try:
-            data = self.get_request_data()
-            file = request.files.get('content_file')
-            
+            # Support both JSON and form-data
+            if request.is_json:
+                data = request.get_json()
+                file = None
+            else:
+                data = request.form.to_dict()
+                file = request.files.get('image')
+
             if file:
                 validate_file_upload(file)
-            
+
             section = self.service.create_section(data, file)
+            section_data = section.to_dict() if hasattr(section, 'to_dict') else section
             return self.success_response(
-                data=section.to_dict(),
+                data=section_data,
                 message="Section created successfully",
                 status_code=201
             )
@@ -85,22 +65,19 @@ class SectionController(BaseController):
             return self.error_response("Failed to create section", status_code=500)
     
     def update_section(self, section_id: int) -> Tuple[Dict[str, Any], int]:
-        """
-        Update an existing section.
-        
-        Args:
-            section_id: ID of the section to update
-            
-        Returns:
-            Tuple containing response dict and status code
-        """
+        """ Update an existing section. """
         try:
-            data = self.get_request_data()
-            file = request.files.get('content_file')
-            
+            # Support both JSON and form-data
+            if request.is_json:
+                data = request.get_json()
+                file = None
+            else:
+                data = request.form.to_dict()
+                file = request.files.get('image')
+
             if file:
                 validate_file_upload(file)
-            
+
             section = self.service.update_section(section_id, data, file)
             if not section:
                 return self.error_response("Section not found", status_code=404)
@@ -115,15 +92,7 @@ class SectionController(BaseController):
             return self.error_response("Failed to update section", status_code=500)
     
     def delete_section(self, section_id: int) -> Tuple[Dict[str, Any], int]:
-        """
-        Delete a section.
-        
-        Args:
-            section_id: ID of the section to delete
-            
-        Returns:
-            Tuple containing response dict and status code
-        """
+        """ Delete a section. """
         try:
             if self.service.delete_section(section_id):
                 return self.success_response(message="Section deleted successfully")

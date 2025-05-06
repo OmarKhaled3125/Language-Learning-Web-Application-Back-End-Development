@@ -47,8 +47,7 @@ def create_crud_routes(endpoint):
 
 # Add routes for all specified endpoints
 ENDPOINTS = [
-    "permission", "progress", "quiz", "role", "rolePermission", "roleUser",
-    "user", "userCompletesLessons", "userTakesQuizzes", "voiceRecognition"
+    "level", "section", "question", "questionChoice"
 ]
 
 # Register all CRUD routes

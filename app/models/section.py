@@ -5,7 +5,7 @@ class Section(db.Model):
     __tablename__ = 'sections'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
+    name = db.Column(db.String(100), unique=True, nullable=False)
     description = db.Column(db.Text, nullable=True)
     image = db.Column(db.String(255), nullable=True)
     level_id = db.Column(db.Integer, db.ForeignKey('levels.id'), nullable=False)
@@ -23,7 +23,6 @@ class Section(db.Model):
             'description': self.description,
             'image': self.image,
             'level_id': self.level_id,
-            'questions': [question.to_dict() for question in self.questions],
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         } 
